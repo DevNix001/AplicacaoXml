@@ -1,1 +1,43 @@
 /* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: #f5f5f5;
+}
+
+.mat-typography {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* Estilos globais para cards */
+.mat-mdc-card {
+  box-shadow: 0 2px 4px rgba(0,0,0,.1) !important;
+  border-radius: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Estilos para botões */
+.mat-mdc-raised-button {
+  text-transform: uppercase;
+  font-weight: 500 !important;
+}
+
+/* Estilos para inputs */
+.mat-mdc-form-field {
+  width: 100%;
+}
+
+/* Estilos para tabelas */
+.mat-mdc-table {
+  width: 100%;
+  background: white;
+  box-shadow: none !important;
+}
+
+/* Estilos para checkboxes */
+.mat-mdc-checkbox {
+  margin: 0 8px !important;
+}
