@@ -1,97 +1,135 @@
-// Estilização dos checkboxes para verde
-::ng-deep {
-  .mat-mdc-checkbox {
-    .mdc-checkbox {
-      .mdc-checkbox__background {
-        border-color: #4caf50 !important;
-      }
-    }
-
-    &.mat-mdc-checkbox-checked {
-      .mdc-checkbox__background {
-        background-color: #4caf50 !important;
-        border-color: #4caf50 !important;
-      }
-    }
-
-    .mat-ripple-element {
-      background: rgba(76, 175, 80, 0.2) !important;
-    }
-
-    &:not(.mat-mdc-checkbox-disabled) {
-      .mat-ripple-element {
-        background: rgba(76, 175, 80, 0.2) !important;
-      }
-    }
-  }
-}
-
 .xml-import-container {
   padding: 20px;
   position: relative;
   min-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .file-input-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+  display: flex;
+  justify-content: center;
+}
+
+.large-drop-zone {
+  width: 100%;
+  min-height: 200px;
+  border: 2px dashed #1976d2;
+  border-radius: 8px;
+  padding: 40px;
   text-align: center;
-  margin-bottom: 20px;
+  background-color: #f8f9fa;
+  margin-bottom: 30px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+
+  &:hover, &.dragover {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #1976d2;
+  }
 
   button {
-    height: 45px;
-    
-    mat-icon {
-      margin-right: 8px;
-    }
+    min-width: 200px;
+    padding: 10px 24px;
+    font-size: 16px;
+    border-radius: 4px;
+  }
+
+  .instructions {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #666;
   }
 }
 
 .file-container {
-  margin-bottom: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 30px;
 
-  .compact-card {
-    mat-card-header {
-      margin-bottom: 16px;
-
-      mat-card-title {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin: 0;
-        font-size: 18px;
-      }
-    }
+  .mat-mdc-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 }
 
 .controls-container {
+  margin: 20px 0;
+  padding: 0 20px;
+}
+
+.search-controls {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  gap: 20px;
   flex-wrap: wrap;
-  gap: 16px;
+  margin-bottom: 20px;
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
 
   .search-field {
-    flex: 1;
-    min-width: 200px;
+    width: 300px;
   }
 
   .select-all-container {
-    min-width: 200px;
+    display: flex;
+    align-items: center;
   }
 }
 
 .table-container {
+  width: 100%;
   overflow-x: auto;
-  margin: 0 -16px;
+  margin-top: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   
   table {
     width: 100%;
-    
+    border: 1px solid #e0e0e0;
+
+    th {
+      background-color: #f5f5f5;
+      border-bottom: 2px solid #e0e0e0;
+      border-right: 1px solid #e0e0e0;
+      padding: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    td {
+      border-bottom: 1px solid #e0e0e0;
+      border-right: 1px solid #e0e0e0;
+      padding: 12px;
+
+      &:last-child {
+        border-right: none;
+      }
+    }
+
     .column-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-right: 8px;
+      gap: 8px;
       
       mat-checkbox {
         margin-right: 8px;
@@ -107,16 +145,6 @@
       }
     }
 
-    th {
-      white-space: nowrap;
-      background: #f5f5f5;
-      font-weight: 500;
-    }
-
-    td {
-      padding: 12px 16px;
-    }
-
     tr:hover {
       background-color: #f8f8f8;
     }
@@ -125,249 +153,70 @@
 
 .fixed-buttons {
   position: fixed;
-  bottom: 20px;
+  bottom: 30px;
   right: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  z-index: 1000;
+  align-items: flex-end;
 
   .export-button {
-    background-color: #4caf50;
-    color: white;
-    padding: 0 24px;
-    height: 45px;
+    background-color: #4caf50 !important;
+    color: white !important;
+    padding: 8px 20px;
+    font-size: 14px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     
-    mat-icon {
-      margin-right: 8px;
+    &:disabled {
+      background-color: rgba(76, 175, 80, 0.5) !important;
     }
 
-    &:disabled {
-      background-color: rgba(0, 0, 0, 0.12);
-      color: rgba(0, 0, 0, 0.38);
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    mat-icon {
+      margin-right: 8px;
+      font-size: 18px;
     }
   }
 
   .back-to-top-button {
-    width: 45px;
-    height: 45px;
-  }
-}
-
-// Estilos para o drag and drop
-.cdk-drag-preview {
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  padding: 12px 16px;
-  border-radius: 4px;
-}
-
-.cdk-drag-placeholder {
-  opacity: 0;
-}
-
-.cdk-drag-animating {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.cdk-drop-list-dragging .mat-row:not(.cdk-drag-placeholder) {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-// Estilos para as tabs
-::ng-deep {
-  .mat-tab-group {
-    margin-bottom: 20px;
-  }
-
-  .mat-tab-label {
-    min-width: 120px !important;
-    padding: 0 15px !important;
-    height: 48px !important;
-    background-color: #f5f5f5;
-    border-radius: 4px 4px 0 0;
-    margin-right: 2px;
-    opacity: 0.7;
+    background-color: #1976d2 !important;
+    color: white !important;
+    width: 40px !important;
+    height: 40px !important;
     
-    &.mat-tab-label-active {
-      background-color: #fff;
-      opacity: 1;
-      font-weight: bold;
+    .mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      line-height: 20px;
     }
 
     &:hover {
-      opacity: 0.9;
-    }
-  }
-
-  .mat-tab-body-content {
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 0 4px 4px 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-}
-
-// Estilo para o indicador de arrastar
-.cdk-drag-preview {
-  background-color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  padding: 12px 16px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-.cdk-drag-placeholder {
-  opacity: 0;
-}
-
-.cdk-drag-animating {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.cdk-drop-list-dragging .mat-row:not(.cdk-drag-placeholder) {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.container {
-  padding: 20px;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.export-container {
-  margin-top: 20px;
-  text-align: right;
-
-  button {
-    mat-icon {
-      margin-right: 8px;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
     }
   }
 }
 
-.export-all-container {
-  margin-top: 30px;
-  text-align: center;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+// Estilização dos checkboxes
+::ng-deep {
+  .mat-mdc-checkbox {
+    .mdc-checkbox {
+      .mdc-checkbox__background {
+        border-color: #4caf50 !important;
+      }
+    }
 
-  button {
-    padding: 0 30px;
-    height: 45px;
-    font-size: 16px;
-
-    mat-icon {
-      margin-right: 8px;
+    &.mat-mdc-checkbox-checked {
+      .mdc-checkbox__background {
+        background-color: #4caf50 !important;
+        border-color: #4caf50 !important;
+      }
     }
   }
-}
-
-.back-to-top {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-}
-
-// Estilo para colunas selecionadas
-.column-selected {
-  background-color: #e3f2fd !important;
-  
-  td {
-    background-color: #e3f2fd !important;
-  }
-}
-
-.spreadsheets-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin: 10px 0;
-}
-
-.spreadsheet-card {
-  width: 100%;
-  margin-bottom: 10px;
-  
-  .mat-card-header {
-    margin-bottom: 10px;
-
-    .mat-card-title {
-      font-size: 18px;
-      font-weight: 500;
-    }
-  }
-
-  .search-field {
-    width: 100%;
-    margin-bottom: 10px;
-  }
-}
-
-.columns-list {
-  display: flex;
-  background: #f5f5f5;
-}
-
-.column-header {
-  cursor: move;
-  width: 150px;
-  min-width: 100px;
-  max-width: 200px;
-  
-  &.cdk-drag-preview {
-    background: #fff;
-    box-shadow: 0 5px 5px -3px rgba(0,0,0,.2),
-                0 8px 10px 1px rgba(0,0,0,.14),
-                0 3px 14px 2px rgba(0,0,0,.12);
-  }
-
-  &.cdk-drag-placeholder {
-    opacity: 0;
-  }
-
-  &.cdk-drag-animating {
-    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-  }
-}
-
-.column-id {
-  margin-right: 8px;
-  font-weight: bold;
-  color: #555;
-}
-
-.drag-handle {
-  cursor: move;
-  color: #666;
-  font-size: 20px;
-  margin-left: 8px;
-  opacity: 0.5;
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 1;
-  }
-}
-
-.columns-list.cdk-drop-list-dragging .column-header:not(.cdk-drag-placeholder) {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.export-button {
-  position: fixed;
-  bottom: 90px;
-  right: 20px;
-  z-index: 2;
-
-  mat-icon {
-    margin-right: 8px;
-  }
-}
-
-.no-results {
-  padding: 16px;
-  text-align: center;
-  color: #666;
 }

@@ -1,24 +1,24 @@
-import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { XmlProcessorService } from '../../services/xml-processor.service';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import * as xml2js from 'xml2js';
 
 interface Column {
   key: string;
   displayName: string;
   selected: boolean;
-  visible: boolean;
 }
 
 interface ImportedFile {
@@ -36,15 +36,16 @@ interface ImportedFile {
   imports: [
     CommonModule,
     FormsModule,
-    MatCardModule,
     MatButtonModule,
-    MatIconModule,
+    MatCardModule,
     MatCheckboxModule,
+    MatIconModule,
     MatInputModule,
     MatFormFieldModule,
     MatTableModule,
     MatTooltipModule,
-    DragDropModule
+    DragDropModule,
+    MatSnackBarModule
   ]
 })
 export class XmlImportComponent {
@@ -52,95 +53,66 @@ export class XmlImportComponent {
   importedFiles: ImportedFile[] = [];
   showBackToTop = false;
 
-  @HostListener('window:scroll')
-  onWindowScroll() {
-    this.showBackToTop = window.scrollY > 300;
+  constructor(
+    private xmlProcessor: XmlProcessorService,
+    private snackBar: MatSnackBar
+  ) {
+    window.addEventListener('scroll', () => {
+      this.showBackToTop = window.scrollY > 300;
+    });
   }
 
-  scrollToTop() {
-    this.topElement?.nativeElement.scrollIntoView({ behavior: 'smooth' });
-  }
+  async onFileSelected(event: any): Promise<void> {
+    const files: FileList = event.target?.files || event.dataTransfer?.files;
+    if (!files) return;
 
-  async onFileSelected(event: any) {
-    const files = event.target.files;
-    if (files) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileContent = await this.readFileContent(file);
-        const jsonData = await this.convertXmlToJson(fileContent);
-        const columns = this.extractColumns(jsonData);
-        
-        this.importedFiles.push({
-          name: file.name,
-          data: jsonData,
-          columns: columns,
-          columnSearchText: ''
-        });
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type !== 'text/xml' && !file.name.endsWith('.xml')) continue;
+
+      try {
+        const result = await this.xmlProcessor.processXmlFile(file);
+        if (result.data.length > 0) {
+          const columns: Column[] = Object.keys(result.data[0]).map(key => ({
+            key,
+            displayName: key,
+            selected: true
+          }));
+
+          this.importedFiles.push({
+            name: file.name,
+            data: result.data,
+            columns,
+            columnSearchText: ''
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao processar arquivo XML:', error);
+        this.showErrorMessage('Não foi possível processar o arquivo XML. Verifique se o formato está correto.');
       }
     }
+
+    // Limpa o input para permitir selecionar o mesmo arquivo novamente
+    if (event.target) event.target.value = '';
   }
 
-  private readFileContent(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = (e) => reject(e);
-      reader.readAsText(file);
-    });
-  }
-
-  private convertXmlToJson(xmlContent: string): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      const parser = new xml2js.Parser({ 
-        explicitArray: false,
-        mergeAttrs: true,
-        explicitRoot: false
-      });
-      
-      parser.parseString(xmlContent, (err: any, result: any) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        
-        const rows = result.row || [];
-        resolve(Array.isArray(rows) ? rows : [rows]);
-      });
-    });
-  }
-
-  private extractColumns(data: any[]): Column[] {
-    const columnSet = new Set<string>();
-    data.forEach(item => {
-      Object.keys(item).forEach(key => columnSet.add(key));
-    });
-
-    return Array.from(columnSet).map(key => ({
-      key,
-      displayName: key,
-      selected: true,
-      visible: true
-    }));
+  removeFile(index: number): void {
+    this.importedFiles.splice(index, 1);
   }
 
   getVisibleColumns(file: ImportedFile): Column[] {
-    return file.columns.filter(column => {
-      const searchMatch = !file.columnSearchText || 
-        column.displayName.toLowerCase().includes(file.columnSearchText.toLowerCase());
-      return column.visible && searchMatch;
-    });
+    return file.columns.filter(column =>
+      !file.columnSearchText ||
+      column.displayName.toLowerCase().includes(file.columnSearchText.toLowerCase())
+    );
   }
 
-  toggleColumnSelection(column: Column, file: ImportedFile) {
-    column.selected = !column.selected;
+  getVisibleColumnKeys(file: ImportedFile): string[] {
+    return this.getVisibleColumns(file).map(col => col.key);
   }
 
-  toggleAllColumns(checked: boolean, file: ImportedFile) {
-    file.columns.forEach(column => {
-      if (column.visible) {
-        column.selected = checked;
-      }
-    });
+  toggleAllColumns(checked: boolean, file: ImportedFile): void {
+    this.getVisibleColumns(file).forEach(column => column.selected = checked);
   }
 
   areAllColumnsSelected(file: ImportedFile): boolean {
@@ -153,94 +125,193 @@ export class XmlImportComponent {
     return visibleColumns.some(column => column.selected) && !this.areAllColumnsSelected(file);
   }
 
-  getVisibleColumnKeys(file: ImportedFile): string[] {
-    return this.getVisibleColumns(file).map(column => column.key);
+  toggleColumnSelection(column: Column, file: ImportedFile): void {
+    column.selected = !column.selected;
   }
 
-  removeFile(index: number) {
-    this.importedFiles.splice(index, 1);
-  }
-
-  onDrop(event: CdkDragDrop<string[]>, file: ImportedFile) {
-    moveItemInArray(file.columns, event.previousIndex, event.currentIndex);
+  onColumnDrop(event: CdkDragDrop<string[]>, file: ImportedFile): void {
+    if (event.previousIndex !== event.currentIndex) {
+      moveItemInArray(file.columns, event.previousIndex, event.currentIndex);
+    }
   }
 
   canExport(): boolean {
-    return this.importedFiles.some(file => 
-      file.columns.some(column => column.selected)
-    );
+    return this.importedFiles.length > 0 &&
+           this.importedFiles.some(file => 
+             file.columns.some(column => column.selected)
+           );
   }
 
-  async exportAllToExcel() {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Dados Combinados');
-    
-    // Mapa para armazenar todas as colunas únicas
-    const uniqueColumns = new Map<string, Set<string>>();
-    
-    // Primeiro passo: Coletar todas as colunas selecionadas e seus possíveis nomes diferentes
-    this.importedFiles.forEach(file => {
-      file.columns.forEach(column => {
-        if (column.selected) {
-          // Normaliza o nome da coluna (remove espaços extras, converte para minúsculo)
-          const normalizedName = this.normalizeColumnName(column.displayName);
-          
-          if (!uniqueColumns.has(normalizedName)) {
-            uniqueColumns.set(normalizedName, new Set());
-          }
-          uniqueColumns.get(normalizedName)?.add(column.key);
-        }
-      });
-    });
-
-    // Converter o mapa de colunas únicas em um array de cabeçalhos
-    const headers = Array.from(uniqueColumns.keys());
-    worksheet.addRow(headers);
-
-    // Adicionar dados de cada arquivo
-    this.importedFiles.forEach(file => {
-      file.data.forEach(row => {
-        const rowData = headers.map(header => {
-          // Procura por qualquer coluna que corresponda ao cabeçalho normalizado
-          const possibleKeys = uniqueColumns.get(header) || new Set();
-          for (const key of possibleKeys) {
-            if (row[key] !== undefined && row[key] !== '') {
-              return row[key];
+  async exportAllToExcel(): Promise<void> {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Dados Combinados');
+      
+      // Mapa para armazenar todas as colunas únicas e seus valores
+      const uniqueColumns = new Map<string, Set<string>>();
+      const columnData = new Map<string, any[]>();
+      
+      // Primeiro passo: coletar todas as colunas únicas e seus valores
+      this.importedFiles.forEach(file => {
+        file.columns.forEach(column => {
+          if (column.selected) {
+            const normalizedName = this.normalizeColumnName(column.displayName);
+            if (!uniqueColumns.has(normalizedName)) {
+              uniqueColumns.set(normalizedName, new Set([column.displayName]));
+              columnData.set(normalizedName, []);
+            } else {
+              uniqueColumns.get(normalizedName)?.add(column.displayName);
             }
           }
-          return '';
+        });
+      });
+      
+      // Segundo passo: coletar todos os dados para cada coluna única
+      this.importedFiles.forEach(file => {
+        file.data.forEach(row => {
+          file.columns.forEach(column => {
+            if (column.selected) {
+              const normalizedName = this.normalizeColumnName(column.displayName);
+              const currentData = columnData.get(normalizedName) || [];
+              if (row[column.key] !== undefined && row[column.key] !== null) {
+                currentData.push(row[column.key]);
+              }
+              columnData.set(normalizedName, currentData);
+            }
+          });
+        });
+      });
+      
+      // Terceiro passo: adicionar cabeçalhos e dados ao worksheet
+      const headers: string[] = Array.from(uniqueColumns.keys());
+      worksheet.addRow(headers);
+      
+      // Encontrar o maior número de linhas
+      const maxRows = Math.max(...Array.from(columnData.values()).map(data => data.length));
+      
+      // Adicionar dados
+      for (let i = 0; i < maxRows; i++) {
+        const rowData = headers.map(header => {
+          const data = columnData.get(header) || [];
+          return data[i] || '';
         });
         worksheet.addRow(rowData);
+      }
+      
+      // Ajustar largura das colunas
+      worksheet.columns.forEach((column: any) => {
+        if (column && typeof column.eachCell === 'function') {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, (cell: any) => {
+            const cellLength = cell.value ? cell.value.toString().length : 0;
+            maxLength = Math.max(maxLength, cellLength);
+          });
+          column.width = Math.min(maxLength + 2, 50); // Limita a largura máxima a 50 caracteres
+        }
       });
-    });
 
-    // Ajustar largura das colunas
-    worksheet.columns.forEach(column => {
-      column.width = 20;
-    });
+      // Estilizar cabeçalhos
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE6E6E6' }
+      };
 
-    // Estilizar cabeçalhos
-    const headerRow = worksheet.getRow(1);
-    headerRow.font = { bold: true };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    };
-
-    // Gerar arquivo
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, 'dados_combinados.xlsx');
+      // Gerar arquivo Excel
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, 'dados_combinados.xlsx');
+    } catch (error) {
+      console.error('Erro ao exportar para Excel:', error);
+      this.showErrorMessage('Não foi possível exportar os dados para Excel. Tente novamente.');
+    }
   }
 
   private normalizeColumnName(name: string): string {
-    // Remove espaços extras, converte para minúsculo e remove acentos
-    return name
-      .trim()
-      .toLowerCase()
+    return name.toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, ' ');
+      .trim();
+  }
+
+  scrollToTop(): void {
+    this.topElement.nativeElement.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const dropZone = event.target as HTMLElement;
+    dropZone.closest('.drop-zone')?.classList.add('dragover');
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const dropZone = event.target as HTMLElement;
+    dropZone.closest('.drop-zone')?.classList.remove('dragover');
+  }
+
+  onFileDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const dropZone = event.target as HTMLElement;
+    dropZone.closest('.drop-zone')?.classList.remove('dragover');
+
+    const files = Array.from(event.dataTransfer?.files || []);
+    const xmlFiles = files.filter(file => file.name.toLowerCase().endsWith('.xml'));
+    
+    if (xmlFiles.length > 0) {
+      this.handleFiles(xmlFiles);
+    }
+  }
+
+  private handleFiles(files: File[]) {
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        const xmlContent = e.target?.result as string;
+        this.processXmlFile(file.name, xmlContent);
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  private async processXmlFile(fileName: string, xmlContent: string) {
+    try {
+      const result = await this.xmlProcessor.parseXml(xmlContent);
+      if (result.length > 0) {
+        const columns: Column[] = Object.keys(result[0]).map(key => ({
+          key,
+          displayName: key,
+          selected: true
+        }));
+
+        this.importedFiles.push({
+          name: fileName,
+          data: result,
+          columns,
+          columnSearchText: ''
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao processar arquivo XML:', error);
+      this.showErrorMessage('Não foi possível processar o arquivo XML. Verifique se o formato está correto.');
+    }
+  }
+
+  private showErrorMessage(message: string) {
+    this.snackBar.open(message, 'Fechar', {
+      duration: 5000,
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom',
+      panelClass: ['error-snackbar']
+    });
+  }
+
+  deselectAllColumns(file: ImportedFile): void {
+    file.columns.forEach(column => column.selected = false);
   }
 }

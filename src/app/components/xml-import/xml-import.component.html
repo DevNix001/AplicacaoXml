@@ -1,9 +1,13 @@
 <div #top class="xml-import-container">
   <div class="file-input-container">
-    <button mat-raised-button color="primary" (click)="fileInput.click()">
-      <mat-icon>upload_file</mat-icon>
-      Selecionar Arquivo XML
-    </button>
+    <div class="drop-zone large-drop-zone" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onFileDrop($event)">
+      <mat-icon class="upload-icon">cloud_upload</mat-icon>
+      <button mat-raised-button color="primary" (click)="fileInput.click()">
+        <mat-icon>upload_file</mat-icon>
+        Selecionar Arquivo XML
+      </button>
+      <p class="instructions">Arraste e solte arquivos XML aqui ou clique no botão acima</p>
+    </div>
     <input #fileInput type="file" (change)="onFileSelected($event)" accept=".xml" multiple style="display: none">
   </div>
 
@@ -20,23 +24,25 @@
 
       <mat-card-content>
         <div class="controls-container">
-          <mat-form-field class="search-field" appearance="outline">
-            <mat-label>Pesquisar colunas</mat-label>
-            <input matInput [(ngModel)]="file.columnSearchText" placeholder="Digite para buscar colunas">
-            <mat-icon matSuffix>search</mat-icon>
-          </mat-form-field>
+          <div class="search-controls">
+            <mat-form-field class="search-field" appearance="outline">
+              <mat-label>Pesquisar colunas</mat-label>
+              <input matInput [(ngModel)]="file.columnSearchText" placeholder="Digite para buscar colunas">
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
 
-          <div class="select-all-container">
-            <mat-checkbox (change)="toggleAllColumns($event.checked, file)" 
-                         [checked]="areAllColumnsSelected(file)"
-                         [indeterminate]="areSomeColumnsSelected(file)">
-              Selecionar todas as colunas
-            </mat-checkbox>
+            <div class="select-all-container">
+              <mat-checkbox (change)="toggleAllColumns($event.checked, file)" 
+                           [checked]="areAllColumnsSelected(file)"
+                           [indeterminate]="areSomeColumnsSelected(file)">
+                Selecionar todas as colunas
+              </mat-checkbox>
+            </div>
           </div>
         </div>
 
         <div class="table-container" *ngIf="file.data.length > 0">
-          <table mat-table [dataSource]="file.data">
+          <table mat-table [dataSource]="file.data" class="mat-elevation-z8">
             <ng-container *ngFor="let column of getVisibleColumns(file)">
               <ng-container [matColumnDef]="column.key">
                 <th mat-header-cell *matHeaderCellDef cdkDrag>
@@ -52,7 +58,11 @@
               </ng-container>
             </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="getVisibleColumnKeys(file)" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onDrop($event, file)"></tr>
+            <tr mat-header-row *matHeaderRowDef="getVisibleColumnKeys(file)" 
+                cdkDropList 
+                cdkDropListOrientation="horizontal" 
+                (cdkDropListDropped)="onColumnDrop($event, file)">
+            </tr>
             <tr mat-row *matRowDef="let row; columns: getVisibleColumnKeys(file);"></tr>
           </table>
         </div>
@@ -62,6 +72,15 @@
 
   <!-- Botões fixos -->
   <div class="fixed-buttons">
+    <button mat-fab 
+            color="primary" 
+            class="back-to-top-button"
+            (click)="scrollToTop()" 
+            matTooltip="Voltar ao topo"
+            *ngIf="showBackToTop">
+      <mat-icon>arrow_upward</mat-icon>
+    </button>
+
     <button mat-raised-button 
             class="export-button"
             (click)="exportAllToExcel()"
@@ -69,15 +88,6 @@
             matTooltip="Exportar selecionados para Excel">
       <mat-icon>download</mat-icon>
       Exportar para Excel
-    </button>
-
-    <button *ngIf="showBackToTop" 
-            mat-fab 
-            color="primary" 
-            class="back-to-top-button"
-            (click)="scrollToTop()" 
-            matTooltip="Voltar ao topo">
-      <mat-icon>arrow_upward</mat-icon>
     </button>
   </div>
 </div>

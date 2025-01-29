@@ -41,3 +41,13 @@ html, body {
 .mat-mdc-checkbox {
   margin: 0 8px !important;
 }
+
+/* Estilos para snackbar de erro */
+.error-snackbar {
+  background: #f44336;
+  color: white;
+  
+  .mat-simple-snackbar-action {
+    color: white;
+  }
+}

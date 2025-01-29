@@ -3,8 +3,7 @@ import { XmlImportComponent } from './components/xml-import/xml-import.component
 
 @Component({
   selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
+  template: '<app-xml-import></app-xml-import>',
   standalone: true,
   imports: [XmlImportComponent]
 })
