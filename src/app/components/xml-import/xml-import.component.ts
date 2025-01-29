@@ -175,26 +175,40 @@ export class XmlImportComponent {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Dados Combinados');
     
-    // Coletar todas as colunas selecionadas de todos os arquivos
-    const allSelectedColumns = new Map<string, Column>();
+    // Mapa para armazenar todas as colunas únicas
+    const uniqueColumns = new Map<string, Set<string>>();
+    
+    // Primeiro passo: Coletar todas as colunas selecionadas e seus possíveis nomes diferentes
     this.importedFiles.forEach(file => {
       file.columns.forEach(column => {
-        if (column.selected && !allSelectedColumns.has(column.displayName)) {
-          allSelectedColumns.set(column.displayName, column);
+        if (column.selected) {
+          // Normaliza o nome da coluna (remove espaços extras, converte para minúsculo)
+          const normalizedName = this.normalizeColumnName(column.displayName);
+          
+          if (!uniqueColumns.has(normalizedName)) {
+            uniqueColumns.set(normalizedName, new Set());
+          }
+          uniqueColumns.get(normalizedName)?.add(column.key);
         }
       });
     });
 
-    // Adicionar cabeçalhos
-    const headers = Array.from(allSelectedColumns.keys());
+    // Converter o mapa de colunas únicas em um array de cabeçalhos
+    const headers = Array.from(uniqueColumns.keys());
     worksheet.addRow(headers);
 
     // Adicionar dados de cada arquivo
     this.importedFiles.forEach(file => {
       file.data.forEach(row => {
         const rowData = headers.map(header => {
-          const column = file.columns.find(col => col.displayName === header);
-          return column ? row[column.key] || '' : '';
+          // Procura por qualquer coluna que corresponda ao cabeçalho normalizado
+          const possibleKeys = uniqueColumns.get(header) || new Set();
+          for (const key of possibleKeys) {
+            if (row[key] !== undefined && row[key] !== '') {
+              return row[key];
+            }
+          }
+          return '';
         });
         worksheet.addRow(rowData);
       });
@@ -218,5 +232,15 @@ export class XmlImportComponent {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, 'dados_combinados.xlsx');
+  }
+
+  private normalizeColumnName(name: string): string {
+    // Remove espaços extras, converte para minúsculo e remove acentos
+    return name
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ');
   }
 }
