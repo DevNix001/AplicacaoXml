@@ -1,56 +1,68 @@
-<div #top class="xml-import-container">
-  <div class="file-input-container">
-    <div class="drop-zone large-drop-zone" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onFileDrop($event)">
-      <mat-icon class="upload-icon">cloud_upload</mat-icon>
+<div #top class="container">
+  <div class="file-input-section">
+    <div class="drop-zone" 
+         (dragover)="onDragOver($event)" 
+         (dragleave)="onDragLeave($event)" 
+         (drop)="onFileDrop($event)">
+      <mat-icon>cloud_upload</mat-icon>
+      <h3>Arraste e solte arquivos XML aqui</h3>
+      <p>ou</p>
       <button mat-raised-button color="primary" (click)="fileInput.click()">
-        <mat-icon>upload_file</mat-icon>
-        Selecionar Arquivo XML
+        Selecionar Arquivos
       </button>
-      <p class="instructions">Arraste e solte arquivos XML aqui ou clique no botão acima</p>
+      <input #fileInput type="file" 
+             (change)="onFileSelected($event)" 
+             accept=".xml" 
+             multiple 
+             style="display: none">
     </div>
-    <input #fileInput type="file" (change)="onFileSelected($event)" accept=".xml" multiple style="display: none">
   </div>
 
-  <div *ngFor="let file of importedFiles; let i = index" class="file-container">
-    <mat-card class="compact-card">
+  <div class="imported-files" *ngIf="importedFiles.length > 0">
+    <mat-card *ngFor="let file of importedFiles; let i = index">
       <mat-card-header>
         <mat-card-title>
-          {{ file.name }}
-          <button mat-icon-button color="warn" (click)="removeFile(i)" matTooltip="Remover arquivo">
-            <mat-icon>close</mat-icon>
+          {{file.name}}
+          <button mat-icon-button color="warn" (click)="removeFile(i)" 
+                  matTooltip="Remover arquivo">
+            <mat-icon>delete</mat-icon>
           </button>
         </mat-card-title>
       </mat-card-header>
 
       <mat-card-content>
-        <div class="controls-container">
-          <div class="search-controls">
-            <mat-form-field class="search-field" appearance="outline">
-              <mat-label>Pesquisar colunas</mat-label>
-              <input matInput [(ngModel)]="file.columnSearchText" placeholder="Digite para buscar colunas">
-              <mat-icon matSuffix>search</mat-icon>
-            </mat-form-field>
-
-            <div class="select-all-container">
-              <mat-checkbox #selectAllCheckbox
-                           [checked]="areAllColumnsSelected(file)"
-                           [indeterminate]="areSomeColumnsSelected(file)"
-                           (change)="$event ? toggleAllColumns($event.checked, file) : null">
-                Selecionar todas as colunas desta planilha
-              </mat-checkbox>
-            </div>
-          </div>
-        </div>
-
         <div class="table-container">
+          <div class="file-header">
+            <div class="search-box">
+              <mat-form-field>
+                <mat-label>Pesquisar colunas</mat-label>
+                <input matInput [(ngModel)]="file.columnSearchText" 
+                       placeholder="Digite para filtrar...">
+                <button mat-icon-button matSuffix *ngIf="file.columnSearchText" 
+                        (click)="file.columnSearchText=''">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-form-field>
+            </div>
+            
+            <mat-checkbox
+              [checked]="areAllColumnsSelected(file)"
+              [indeterminate]="areSomeColumnsSelected(file)"
+              (change)="toggleAllColumns(file)">
+              Selecionar todas as colunas desta planilha
+            </mat-checkbox>
+          </div>
+
           <table>
             <thead>
-              <tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onColumnDrop($event, file)">
+              <tr cdkDropList cdkDropListOrientation="horizontal" 
+                  (cdkDropListDropped)="onColumnDrop($event, file)">
                 <th *ngFor="let column of getVisibleColumns(file)" cdkDrag>
                   <div class="column-header">
                     <mat-checkbox 
                       [(ngModel)]="column.selected"
-                      (change)="toggleColumnSelection(column, file)">
+                      (ngModelChange)="toggleColumnSelection(column, file)"
+                      [checked]="column.selected">
                       {{column.displayName}}
                     </mat-checkbox>
                     <mat-icon class="drag-handle">drag_indicator</mat-icon>
@@ -80,26 +92,20 @@
     </mat-card>
   </div>
 
-  <!-- Botões fixos -->
   <div class="fixed-buttons">
-    <button mat-fab 
-            color="primary" 
-            class="back-to-top-button"
-            (click)="scrollToTop()" 
-            matTooltip="Voltar ao topo"
-            *ngIf="showBackToTop">
-      <mat-icon>arrow_upward</mat-icon>
+    <button mat-raised-button
+            color="primary"
+            class="export-button"
+            (click)="exportAllToExcel()"
+            [disabled]="!columnSelectionService.hasSelectedColumns()">
+      <mat-icon>file_download</mat-icon>
+      Exportar para Excel
     </button>
-
-    <div class="actions-container">
-      <button mat-raised-button
-              class="export-button"
-              (click)="exportAllToExcel()"
-              [disabled]="!canExport()"
-              matTooltip="Exportar dados para Excel">
-        <mat-icon>file_download</mat-icon>
-        Exportar para Excel
-      </button>
-    </div>
   </div>
+
+  <button mat-fab class="back-to-top" 
+          (click)="scrollToTop()" 
+          *ngIf="showBackToTop">
+    <mat-icon>arrow_upward</mat-icon>
+  </button>
 </div>

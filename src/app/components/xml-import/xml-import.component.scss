@@ -200,14 +200,16 @@
 
 .fixed-buttons {
   position: fixed;
-  bottom: 30px;
+  bottom: 20px;
   right: 20px;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  align-items: flex-end;
+  gap: 10px;
 
   .export-button {
+    padding: 0 20px;
+    height: 45px;
     background-color: #4CAF50 !important; 
     color: white !important;
     
@@ -317,4 +319,148 @@
       }
     }
   }
+}
+
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.file-input-section {
+  margin-bottom: 20px;
+
+  .drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &.dragover {
+      background: #f0f0f0;
+      border-color: #2196f3;
+    }
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      margin: 10px 0;
+      color: #666;
+    }
+
+    p {
+      margin: 10px 0;
+      color: #999;
+    }
+  }
+}
+
+.imported-files {
+  mat-card {
+    margin-bottom: 20px;
+
+    mat-card-header {
+      margin-bottom: 15px;
+
+      mat-card-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+  margin: 15px 0;
+
+  .file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      max-width: 400px;
+    }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f5f5f5;
+      font-weight: 500;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .drag-handle {
+        cursor: move;
+        color: #999;
+      }
+    }
+
+    td {
+      &.large-content {
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &.expanded {
+          white-space: normal;
+          max-width: none;
+        }
+
+        .expand-button {
+          margin-top: 5px;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
+
+.actions {
+  position: sticky;
+  bottom: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+}
+
+.back-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
 }
