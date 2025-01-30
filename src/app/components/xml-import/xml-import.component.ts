@@ -73,16 +73,59 @@ export class XmlImportComponent {
       try {
         const result = await this.xmlProcessor.processXmlFile(file);
         if (result.data.length > 0) {
-          const columns: Column[] = Object.keys(result.data[0]).map(key => ({
-            key,
-            displayName: key,
-            selected: true
-          }));
+          // Verifica se já existem arquivos importados para manter a consistência das colunas
+          let columns: Column[];
+          if (this.importedFiles.length > 0) {
+            // Usa as colunas do primeiro arquivo como referência
+            const existingColumns = this.importedFiles[0].columns;
+            // Mantém as colunas existentes e adiciona novas se houver
+            const newColumnKeys = Object.keys(result.data[0]);
+            columns = existingColumns.map(col => ({...col})); // Clone as colunas existentes
+            
+            // Adiciona novas colunas que não existiam antes
+            newColumnKeys.forEach(key => {
+              const normalizedKey = this.normalizeColumnName(key);
+              if (!columns.find(col => this.normalizeColumnName(col.key) === normalizedKey)) {
+                columns.push({
+                  key,
+                  displayName: key,
+                  selected: true
+                });
+              }
+            });
+          } else {
+            // Se for o primeiro arquivo, cria as colunas normalmente
+            columns = Object.keys(result.data[0]).map(key => ({
+              key,
+              displayName: key,
+              selected: true
+            }));
+          }
+
+          // Normaliza os dados para usar as mesmas chaves quando as colunas têm o mesmo nome
+          const normalizedData = result.data.map(item => {
+            const normalizedItem: any = {};
+            Object.entries(item).forEach(([key, value]) => {
+              const normalizedKey = this.normalizeColumnName(key);
+              const targetColumn = columns.find(col => this.normalizeColumnName(col.key) === normalizedKey);
+              if (targetColumn) {
+                normalizedItem[targetColumn.key] = value;
+              }
+            });
+            return normalizedItem;
+          });
+
+          // Atualiza as colunas em todos os arquivos importados para manter consistência
+          if (this.importedFiles.length > 0) {
+            this.importedFiles.forEach(importedFile => {
+              importedFile.columns = columns.map(col => ({...col}));
+            });
+          }
 
           this.importedFiles.push({
             name: file.name,
-            data: result.data,
-            columns,
+            data: normalizedData,
+            columns: columns.map(col => ({...col})),
             columnSearchText: ''
           });
         }
@@ -92,7 +135,6 @@ export class XmlImportComponent {
       }
     }
 
-    // Limpa o input para permitir selecionar o mesmo arquivo novamente
     if (event.target) event.target.value = '';
   }
 
@@ -112,7 +154,18 @@ export class XmlImportComponent {
   }
 
   toggleAllColumns(checked: boolean, file: ImportedFile): void {
-    this.getVisibleColumns(file).forEach(column => column.selected = checked);
+    const visibleColumns = this.getVisibleColumns(file);
+    visibleColumns.forEach(column => column.selected = checked);
+    
+    // Atualiza o mesmo estado em todas as instâncias da coluna em outros arquivos
+    const columnKeys = visibleColumns.map(col => this.normalizeColumnName(col.key));
+    this.importedFiles.forEach(otherFile => {
+      otherFile.columns.forEach(col => {
+        if (columnKeys.includes(this.normalizeColumnName(col.key))) {
+          col.selected = checked;
+        }
+      });
+    });
   }
 
   areAllColumnsSelected(file: ImportedFile): boolean {
@@ -312,6 +365,15 @@ export class XmlImportComponent {
   }
 
   deselectAllColumns(file: ImportedFile): void {
-    file.columns.forEach(column => column.selected = false);
+    file.columns.forEach(column => {
+      column.selected = false;
+      // Atualiza o mesmo estado em todas as instâncias da coluna em outros arquivos
+      const normalizedKey = this.normalizeColumnName(column.key);
+      this.importedFiles.forEach(otherFile => {
+        otherFile.columns
+          .filter(col => this.normalizeColumnName(col.key) === normalizedKey)
+          .forEach(col => col.selected = false);
+      });
+    });
   }
 }
