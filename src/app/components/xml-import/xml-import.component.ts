@@ -198,87 +198,78 @@ export class XmlImportComponent {
   async exportAllToExcel(): Promise<void> {
     try {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Dados Combinados');
-      
-      // Mapa para armazenar todas as colunas únicas e seus valores
-      const uniqueColumns = new Map<string, Set<string>>();
-      const columnData = new Map<string, any[]>();
-      
-      // Primeiro passo: coletar todas as colunas únicas e seus valores
-      this.importedFiles.forEach(file => {
-        file.columns.forEach(column => {
-          if (column.selected) {
-            const normalizedName = this.normalizeColumnName(column.displayName);
-            if (!uniqueColumns.has(normalizedName)) {
-              uniqueColumns.set(normalizedName, new Set([column.displayName]));
-              columnData.set(normalizedName, []);
-            } else {
-              uniqueColumns.get(normalizedName)?.add(column.displayName);
-            }
+
+      // Para cada arquivo importado, cria uma planilha separada
+      for (const file of this.importedFiles) {
+        const worksheet = workbook.addWorksheet(file.name);
+        
+        // Obtém as colunas selecionadas
+        const selectedColumns = file.columns.filter(col => col.selected);
+        
+        // Mapa para armazenar colunas unificadas
+        const unifiedColumns = new Map<string, Set<string>>();
+        
+        // Primeiro passo: identificar colunas com mesmo nome
+        selectedColumns.forEach(column => {
+          const normalizedName = this.normalizeColumnName(column.displayName);
+          if (!unifiedColumns.has(normalizedName)) {
+            unifiedColumns.set(normalizedName, new Set([column.key]));
+          } else {
+            unifiedColumns.get(normalizedName)?.add(column.key);
           }
         });
-      });
-      
-      // Segundo passo: coletar todos os dados para cada coluna única
-      this.importedFiles.forEach(file => {
+
+        // Prepara os cabeçalhos
+        const headers: string[] = Array.from(unifiedColumns.keys());
+        worksheet.addRow(headers);
+
+        // Adiciona os dados
         file.data.forEach(row => {
-          file.columns.forEach(column => {
-            if (column.selected) {
-              const normalizedName = this.normalizeColumnName(column.displayName);
-              const currentData = columnData.get(normalizedName) || [];
-              if (row[column.key] !== undefined && row[column.key] !== null) {
-                currentData.push(row[column.key]);
-              }
-              columnData.set(normalizedName, currentData);
+          const rowData = headers.map(header => {
+            const columnKeys = unifiedColumns.get(header);
+            if (columnKeys) {
+              // Para colunas unificadas, combina os valores
+              const values = Array.from(columnKeys)
+                .map(key => row[key])
+                .filter(value => value !== undefined && value !== null);
+              return values.join(', ');
             }
+            return '';
           });
+          worksheet.addRow(rowData);
         });
-      });
-      
-      // Terceiro passo: adicionar cabeçalhos e dados ao worksheet
-      const headers: string[] = Array.from(uniqueColumns.keys());
-      worksheet.addRow(headers);
-      
-      // Encontrar o maior número de linhas
-      const maxRows = Math.max(...Array.from(columnData.values()).map(data => data.length));
-      
-      // Adicionar dados
-      for (let i = 0; i < maxRows; i++) {
-        const rowData = headers.map(header => {
-          const data = columnData.get(header) || [];
-          return data[i] || '';
+
+        // Ajusta o estilo da planilha
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.columns.forEach((column: any) => {
+          if (column && typeof column.eachCell === 'function') {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, (cell: any) => {
+              const cellLength = cell.value ? cell.value.toString().length : 0;
+              maxLength = Math.max(maxLength, cellLength);
+            });
+            column.width = Math.min(maxLength + 2, 50);
+          }
         });
-        worksheet.addRow(rowData);
       }
-      
-      // Ajustar largura das colunas
-      worksheet.columns.forEach((column: any) => {
-        if (column && typeof column.eachCell === 'function') {
-          let maxLength = 0;
-          column.eachCell({ includeEmpty: true }, (cell: any) => {
-            const cellLength = cell.value ? cell.value.toString().length : 0;
-            maxLength = Math.max(maxLength, cellLength);
-          });
-          column.width = Math.min(maxLength + 2, 50); // Limita a largura máxima a 50 caracteres
-        }
-      });
 
-      // Estilizar cabeçalhos
-      const headerRow = worksheet.getRow(1);
-      headerRow.font = { bold: true };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE6E6E6' }
-      };
-
-      // Gerar arquivo Excel
+      // Gera o arquivo Excel
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(blob, 'dados_combinados.xlsx');
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      saveAs(blob, 'dados_exportados.xlsx');
+
+      this.snackBar.open('Dados exportados com sucesso!', 'Fechar', {
+        duration: 3000,
+        panelClass: ['success-snackbar']
+      });
     } catch (error) {
       console.error('Erro ao exportar para Excel:', error);
-      this.showErrorMessage('Não foi possível exportar os dados para Excel. Tente novamente.');
+      this.snackBar.open('Erro ao exportar para Excel. Por favor, tente novamente.', 'Fechar', {
+        duration: 5000,
+        panelClass: ['error-snackbar']
+      });
     }
   }
 
