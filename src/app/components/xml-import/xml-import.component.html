@@ -32,38 +32,48 @@
             </mat-form-field>
 
             <div class="select-all-container">
-              <mat-checkbox (change)="toggleAllColumns($event.checked, file)" 
+              <mat-checkbox #selectAllCheckbox
                            [checked]="areAllColumnsSelected(file)"
-                           [indeterminate]="areSomeColumnsSelected(file)">
-                Selecionar todas as colunas
+                           [indeterminate]="areSomeColumnsSelected(file)"
+                           (change)="$event ? toggleAllColumns($event.checked, file) : null">
+                Selecionar todas as colunas desta planilha
               </mat-checkbox>
             </div>
           </div>
         </div>
 
-        <div class="table-container" *ngIf="file.data.length > 0">
-          <table mat-table [dataSource]="file.data" class="mat-elevation-z8">
-            <ng-container *ngFor="let column of getVisibleColumns(file)">
-              <ng-container [matColumnDef]="column.key">
-                <th mat-header-cell *matHeaderCellDef cdkDrag>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onColumnDrop($event, file)">
+                <th *ngFor="let column of getVisibleColumns(file)" cdkDrag>
                   <div class="column-header">
-                    <mat-checkbox [(ngModel)]="column.selected"
-                                (change)="toggleColumnSelection(column, file)">
-                      {{ column.displayName }}
+                    <mat-checkbox 
+                      [(ngModel)]="column.selected"
+                      (change)="toggleColumnSelection(column, file)">
+                      {{column.displayName}}
                     </mat-checkbox>
                     <mat-icon class="drag-handle">drag_indicator</mat-icon>
                   </div>
                 </th>
-                <td mat-cell *matCellDef="let element">{{ element[column.key] }}</td>
-              </ng-container>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="getVisibleColumnKeys(file)" 
-                cdkDropList 
-                cdkDropListOrientation="horizontal" 
-                (cdkDropListDropped)="onColumnDrop($event, file)">
-            </tr>
-            <tr mat-row *matRowDef="let row; columns: getVisibleColumnKeys(file);"></tr>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of file.data">
+                <td *ngFor="let column of getVisibleColumns(file)" 
+                    [class.large-content]="isLargeContent(row[column.key])" 
+                    [class.expanded]="isExpanded(file.name, column.key, row)">
+                  <div class="content-preview">
+                    {{row[column.key]}}
+                  </div>
+                  <button *ngIf="isLargeContent(row[column.key])" 
+                          class="expand-button"
+                          (click)="toggleExpand(file.name, column.key, row)">
+                    {{isExpanded(file.name, column.key, row) ? 'Menos' : 'Mais'}}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </mat-card-content>
@@ -81,13 +91,15 @@
       <mat-icon>arrow_upward</mat-icon>
     </button>
 
-    <button mat-raised-button 
-            class="export-button"
-            (click)="exportAllToExcel()"
-            [disabled]="!canExport()"
-            matTooltip="Exportar selecionados para Excel">
-      <mat-icon>download</mat-icon>
-      Exportar para Excel
-    </button>
+    <div class="actions-container">
+      <button mat-raised-button
+              class="export-button"
+              (click)="exportAllToExcel()"
+              [disabled]="!canExport()"
+              matTooltip="Exportar dados para Excel">
+        <mat-icon>file_download</mat-icon>
+        Exportar para Excel
+      </button>
+    </div>
   </div>
 </div>

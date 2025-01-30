@@ -96,58 +96,105 @@
 }
 
 .table-container {
-  width: 100%;
+  margin: 20px 0;
   overflow-x: auto;
-  margin-top: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
   
   table {
     width: 100%;
-    border: 1px solid #e0e0e0;
-
-    th {
-      background-color: #f5f5f5;
-      border-bottom: 2px solid #e0e0e0;
-      border-right: 1px solid #e0e0e0;
-      padding: 12px;
-      font-weight: 500;
-      white-space: nowrap;
+    border-collapse: collapse;
+    table-layout: auto;
+    
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border: 1px solid #ddd;
+      min-width: 120px;
+      max-width: 300px;
+      vertical-align: top;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     td {
-      border-bottom: 1px solid #e0e0e0;
-      border-right: 1px solid #e0e0e0;
-      padding: 12px;
-
-      &:last-child {
-        border-right: none;
-      }
-    }
-
-    .column-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      
-      mat-checkbox {
-        margin-right: 8px;
-      }
-      
-      .drag-handle {
-        cursor: move;
-        color: rgba(0, 0, 0, 0.3);
+      &.large-content {
+        position: relative;
+        height: 100px;
         
-        &:hover {
-          color: rgba(0, 0, 0, 0.6);
+        .content-preview {
+          height: 100%;
+          overflow: hidden;
+          position: relative;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(transparent, white);
+          }
+        }
+        
+        .expand-button {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          background: #f0f0f0;
+          border: 1px solid #ddd;
+          padding: 2px 5px;
+          font-size: 12px;
+          cursor: pointer;
+          z-index: 1;
+          
+          &:hover {
+            background: #e0e0e0;
+          }
+        }
+        
+        &.expanded {
+          height: auto;
+          max-height: 400px;
+          overflow-y: auto;
+          
+          .content-preview {
+            height: auto;
+            
+            &::after {
+              display: none;
+            }
+          }
         }
       }
     }
 
-    tr:hover {
-      background-color: #f8f8f8;
+    th {
+      background-color: #f5f5f5;
+      font-weight: 500;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+  }
+}
+
+.actions-container {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  
+  button {
+    margin-left: 8px;
   }
 }
 
@@ -161,20 +208,15 @@
   align-items: flex-end;
 
   .export-button {
-    background-color: #4caf50 !important;
+    background-color: #4CAF50 !important; 
     color: white !important;
-    padding: 8px 20px;
-    font-size: 14px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     
-    &:disabled {
-      background-color: rgba(76, 175, 80, 0.5) !important;
+    &:hover {
+      background-color: #45a049 !important;
     }
 
-    &:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    &:disabled {
+      background-color: rgba(76, 175, 80, 0.5) !important;
     }
 
     mat-icon {
@@ -199,6 +241,62 @@
     &:hover {
       transform: translateY(-1px);
       box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
+  }
+}
+
+.file-section {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+
+  h3 {
+    margin: 0;
+    color: #333;
+  }
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  
+  mat-form-field {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+.column-select {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  
+  mat-checkbox {
+    margin-right: 10px;
+  }
+}
+
+.export-button {
+  &.mat-success {
+    background-color: #4caf50;
+    color: white;
+    
+    &:hover {
+      background-color: #45a049;
+    }
+
+    &:disabled {
+      background-color: rgba(76, 175, 80, 0.5);
     }
   }
 }

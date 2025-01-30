@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { Component, ElementRef, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -46,16 +46,21 @@ interface ImportedFile {
     MatTooltipModule,
     DragDropModule,
     MatSnackBarModule
-  ]
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class XmlImportComponent {
   @ViewChild('top') topElement!: ElementRef;
   importedFiles: ImportedFile[] = [];
   showBackToTop = false;
 
+  // Mapa para controlar células expandidas
+  private expandedCells = new Map<string, boolean>();
+
   constructor(
     private xmlProcessor: XmlProcessorService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private changeDetectorRef: ChangeDetectorRef
   ) {
     window.addEventListener('scroll', () => {
       this.showBackToTop = window.scrollY > 300;
@@ -63,79 +68,64 @@ export class XmlImportComponent {
   }
 
   async onFileSelected(event: any): Promise<void> {
-    const files: FileList = event.target?.files || event.dataTransfer?.files;
-    if (!files) return;
+    const files = event.target.files;
+    if (files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.type !== 'text/xml' && !file.name.endsWith('.xml')) continue;
+    try {
+      for (const file of files) {
+        if (!file.name.endsWith('.xml')) {
+          this.snackBar.open('Por favor, selecione apenas arquivos XML.', 'Fechar', {
+            duration: 5000,
+            panelClass: ['warning-snackbar']
+          });
+          continue;
+        }
 
-      try {
-        const result = await this.xmlProcessor.processXmlFile(file);
-        if (result.data.length > 0) {
-          // Verifica se já existem arquivos importados para manter a consistência das colunas
-          let columns: Column[];
-          if (this.importedFiles.length > 0) {
-            // Usa as colunas do primeiro arquivo como referência
-            const existingColumns = this.importedFiles[0].columns;
-            // Mantém as colunas existentes e adiciona novas se houver
-            const newColumnKeys = Object.keys(result.data[0]);
-            columns = existingColumns.map(col => ({...col})); // Clone as colunas existentes
-            
-            // Adiciona novas colunas que não existiam antes
-            newColumnKeys.forEach(key => {
-              const normalizedKey = this.normalizeColumnName(key);
-              if (!columns.find(col => this.normalizeColumnName(col.key) === normalizedKey)) {
-                columns.push({
-                  key,
-                  displayName: key,
-                  selected: true
-                });
-              }
-            });
-          } else {
-            // Se for o primeiro arquivo, cria as colunas normalmente
-            columns = Object.keys(result.data[0]).map(key => ({
+        const fileContent = await this.readFileContent(file);
+        const processedData = await this.xmlProcessor.processXmlContent(fileContent);
+        
+        if (processedData && processedData.data.length > 0) {
+          const importedFile: ImportedFile = {
+            name: file.name,
+            data: processedData.data,
+            columns: Object.keys(processedData.data[0]).map(key => ({
               key,
               displayName: key,
-              selected: true
-            }));
-          }
-
-          // Normaliza os dados para usar as mesmas chaves quando as colunas têm o mesmo nome
-          const normalizedData = result.data.map(item => {
-            const normalizedItem: any = {};
-            Object.entries(item).forEach(([key, value]) => {
-              const normalizedKey = this.normalizeColumnName(key);
-              const targetColumn = columns.find(col => this.normalizeColumnName(col.key) === normalizedKey);
-              if (targetColumn) {
-                normalizedItem[targetColumn.key] = value;
-              }
-            });
-            return normalizedItem;
-          });
-
-          // Atualiza as colunas em todos os arquivos importados para manter consistência
-          if (this.importedFiles.length > 0) {
-            this.importedFiles.forEach(importedFile => {
-              importedFile.columns = columns.map(col => ({...col}));
-            });
-          }
-
-          this.importedFiles.push({
-            name: file.name,
-            data: normalizedData,
-            columns: columns.map(col => ({...col})),
+              selected: false
+            })),
             columnSearchText: ''
-          });
+          };
+          
+          this.importedFiles.push(importedFile);
+          // Força a detecção de mudanças
+          this.changeDetectorRef.detectChanges();
         }
-      } catch (error) {
-        console.error('Erro ao processar arquivo XML:', error);
-        this.showErrorMessage('Não foi possível processar o arquivo XML. Verifique se o formato está correto.');
       }
+
+      if (this.importedFiles.length > 0) {
+        this.snackBar.open('Arquivos importados com sucesso!', 'Fechar', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+        
+        // Força a atualização da view
+        this.changeDetectorRef.detectChanges();
+        
+        // Scroll para o topo após um pequeno delay
+        setTimeout(() => {
+          this.scrollToTop();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Erro ao processar arquivos:', error);
+      this.snackBar.open('Erro ao processar arquivos. Verifique se são arquivos XML válidos.', 'Fechar', {
+        duration: 5000,
+        panelClass: ['error-snackbar']
+      });
     }
 
-    if (event.target) event.target.value = '';
+    // Limpa o input de arquivo para permitir selecionar o mesmo arquivo novamente
+    event.target.value = '';
   }
 
   removeFile(index: number): void {
@@ -143,8 +133,13 @@ export class XmlImportComponent {
   }
 
   getVisibleColumns(file: ImportedFile): Column[] {
-    return file.columns.filter(column =>
-      !file.columnSearchText ||
+    if (!file || !file.columns) return [];
+    
+    if (!file.columnSearchText) {
+      return file.columns;
+    }
+    
+    return file.columns.filter(column => 
       column.displayName.toLowerCase().includes(file.columnSearchText.toLowerCase())
     );
   }
@@ -154,32 +149,39 @@ export class XmlImportComponent {
   }
 
   toggleAllColumns(checked: boolean, file: ImportedFile): void {
-    const visibleColumns = this.getVisibleColumns(file);
-    visibleColumns.forEach(column => column.selected = checked);
-    
-    // Atualiza o mesmo estado em todas as instâncias da coluna em outros arquivos
-    const columnKeys = visibleColumns.map(col => this.normalizeColumnName(col.key));
-    this.importedFiles.forEach(otherFile => {
-      otherFile.columns.forEach(col => {
-        if (columnKeys.includes(this.normalizeColumnName(col.key))) {
-          col.selected = checked;
-        }
-      });
+    console.log('toggleAllColumns', checked, file.name); // Debug log
+    const newValue = checked;
+    file.columns.forEach(column => {
+      column.selected = newValue;
     });
+    // Força a detecção de mudanças
+    this.changeDetectorRef.detectChanges();
   }
 
   areAllColumnsSelected(file: ImportedFile): boolean {
-    const visibleColumns = this.getVisibleColumns(file);
-    return visibleColumns.length > 0 && visibleColumns.every(column => column.selected);
+    if (!file || !file.columns || file.columns.length === 0) return false;
+    return file.columns.every(column => column.selected);
   }
 
   areSomeColumnsSelected(file: ImportedFile): boolean {
-    const visibleColumns = this.getVisibleColumns(file);
-    return visibleColumns.some(column => column.selected) && !this.areAllColumnsSelected(file);
+    if (!file || !file.columns || file.columns.length === 0) return false;
+    const selectedCount = file.columns.filter(column => column.selected).length;
+    return selectedCount > 0 && selectedCount < file.columns.length;
   }
 
   toggleColumnSelection(column: Column, file: ImportedFile): void {
     column.selected = !column.selected;
+    
+    // Debug
+    console.log('Toggle coluna:', column.displayName);
+    console.log('Estado atual:', column.selected);
+    
+    // Força atualização da view
+    this.changeDetectorRef.detectChanges();
+    
+    // Verifica estado do botão
+    const canExport = this.canExport();
+    console.log('Pode exportar:', canExport);
   }
 
   onColumnDrop(event: CdkDragDrop<string[]>, file: ImportedFile): void {
@@ -189,71 +191,112 @@ export class XmlImportComponent {
   }
 
   canExport(): boolean {
-    return this.importedFiles.length > 0 &&
-           this.importedFiles.some(file => 
-             file.columns.some(column => column.selected)
-           );
+    // Verifica se há arquivos importados
+    if (this.importedFiles.length === 0) {
+      return false;
+    }
+
+    // Verifica se há pelo menos uma coluna selecionada em qualquer arquivo
+    const hasSelectedColumns = this.importedFiles.some(file => 
+      file.columns.some(col => {
+        console.log(`Coluna ${col.displayName}: ${col.selected}`);
+        return col.selected;
+      })
+    );
+
+    console.log('Tem colunas selecionadas:', hasSelectedColumns);
+    return hasSelectedColumns;
   }
 
   async exportAllToExcel(): Promise<void> {
     try {
       const workbook = new ExcelJS.Workbook();
-
-      // Para cada arquivo importado, cria uma planilha separada
-      for (const file of this.importedFiles) {
-        const worksheet = workbook.addWorksheet(file.name);
-        
-        // Obtém as colunas selecionadas
+      const worksheet = workbook.addWorksheet('Dados Combinados');
+      
+      // Mapa para armazenar colunas únicas e seus valores
+      const uniqueColumns = new Map<string, Set<{fileIndex: number, columnKey: string}>>();
+      
+      // Primeiro passo: identificar colunas únicas selecionadas
+      this.importedFiles.forEach((file, fileIndex) => {
         const selectedColumns = file.columns.filter(col => col.selected);
-        
-        // Mapa para armazenar colunas unificadas
-        const unifiedColumns = new Map<string, Set<string>>();
-        
-        // Primeiro passo: identificar colunas com mesmo nome
         selectedColumns.forEach(column => {
           const normalizedName = this.normalizeColumnName(column.displayName);
-          if (!unifiedColumns.has(normalizedName)) {
-            unifiedColumns.set(normalizedName, new Set([column.key]));
-          } else {
-            unifiedColumns.get(normalizedName)?.add(column.key);
+          if (!uniqueColumns.has(normalizedName)) {
+            uniqueColumns.set(normalizedName, new Set());
           }
+          uniqueColumns.get(normalizedName)?.add({fileIndex, columnKey: column.key});
         });
+      });
 
-        // Prepara os cabeçalhos
-        const headers: string[] = Array.from(unifiedColumns.keys());
-        worksheet.addRow(headers);
-
-        // Adiciona os dados
-        file.data.forEach(row => {
-          const rowData = headers.map(header => {
-            const columnKeys = unifiedColumns.get(header);
-            if (columnKeys) {
-              // Para colunas unificadas, combina os valores
-              const values = Array.from(columnKeys)
-                .map(key => row[key])
-                .filter(value => value !== undefined && value !== null);
-              return values.join(', ');
-            }
-            return '';
-          });
-          worksheet.addRow(rowData);
+      // Se não houver colunas selecionadas, mostrar mensagem
+      if (uniqueColumns.size === 0) {
+        this.snackBar.open('Selecione pelo menos uma coluna para exportar.', 'Fechar', {
+          duration: 5000,
+          panelClass: ['warning-snackbar']
         });
-
-        // Ajusta o estilo da planilha
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.columns.forEach((column: any) => {
-          if (column && typeof column.eachCell === 'function') {
-            let maxLength = 0;
-            column.eachCell({ includeEmpty: true }, (cell: any) => {
-              const cellLength = cell.value ? cell.value.toString().length : 0;
-              maxLength = Math.max(maxLength, cellLength);
-            });
-            column.width = Math.min(maxLength + 2, 50);
-          }
-        });
+        return;
       }
 
-      // Gera o arquivo Excel
+      // Adicionar cabeçalhos
+      const headers = Array.from(uniqueColumns.keys());
+      worksheet.addRow(headers);
+
+      // Preparar dados combinados
+      const allRows: any[][] = [];
+      
+      // Para cada arquivo
+      this.importedFiles.forEach((file, fileIndex) => {
+        file.data.forEach(dataRow => {
+          while (allRows.length <= fileIndex) {
+            allRows.push([]);
+          }
+          
+          // Para cada coluna única
+          headers.forEach((header, colIndex) => {
+            const columnSources = uniqueColumns.get(header);
+            if (columnSources) {
+              // Procurar valor nas colunas correspondentes
+              const values = Array.from(columnSources)
+                .filter(source => source.fileIndex === fileIndex)
+                .map(source => dataRow[source.columnKey])
+                .filter(value => value !== undefined && value !== null);
+              
+              if (values.length > 0) {
+                allRows[fileIndex][colIndex] = values.join(', ');
+              }
+            }
+          });
+        });
+      });
+
+      // Adicionar todas as linhas ao worksheet
+      allRows.flat().forEach(row => {
+        if (Object.values(row).some(value => value !== undefined)) {
+          worksheet.addRow(row);
+        }
+      });
+
+      // Estilizar a planilha
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE6E6E6' }
+      };
+
+      // Ajustar largura das colunas
+      worksheet.columns.forEach((column: any) => {
+        if (column && typeof column.eachCell === 'function') {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, (cell: any) => {
+            const cellLength = cell.value ? cell.value.toString().length : 0;
+            maxLength = Math.max(maxLength, cellLength);
+          });
+          column.width = Math.min(maxLength + 2, 50);
+        }
+      });
+
+      // Gerar arquivo Excel
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { 
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
@@ -278,6 +321,26 @@ export class XmlImportComponent {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .trim();
+  }
+
+  isLargeContent(text: string): boolean {
+    if (!text) return false;
+    return text.length > 100 || text.includes('\n');
+  }
+
+  getExpandedKey(fileName: string, columnKey: string, row: any): string {
+    return `${fileName}-${columnKey}-${row[columnKey]}`;
+  }
+
+  isExpanded(fileName: string, columnKey: string, row: any): boolean {
+    const key = this.getExpandedKey(fileName, columnKey, row);
+    return this.expandedCells.get(key) || false;
+  }
+
+  toggleExpand(fileName: string, columnKey: string, row: any): void {
+    const key = this.getExpandedKey(fileName, columnKey, row);
+    this.expandedCells.set(key, !this.isExpanded(fileName, columnKey, row));
+    this.changeDetectorRef.detectChanges();
   }
 
   scrollToTop(): void {
@@ -365,6 +428,17 @@ export class XmlImportComponent {
           .filter(col => this.normalizeColumnName(col.key) === normalizedKey)
           .forEach(col => col.selected = false);
       });
+    });
+  }
+
+  private async readFileContent(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        resolve(e.target?.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
     });
   }
 }
